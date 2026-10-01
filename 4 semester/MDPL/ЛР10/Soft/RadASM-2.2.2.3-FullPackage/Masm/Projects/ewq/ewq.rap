@@ -1,0 +1,45 @@
+[Project]
+Assembler=masm
+Type=Console App
+Description=ewq
+Backup=$P\Bak\
+Group=1
+GroupExpand=1
+[Files]
+1=ewq.Asm
+2=ewq.Inc
+[MakeFiles]
+0=ewq.rap
+1=ewq.rc
+2=ewq.asm
+3=ewq.obj
+4=ewq.res
+5=ewq.exe
+6=ewq.def
+7=ewq.dll
+8=ewq.txt
+9=ewq.lib
+10=ewq.mak
+11=ewq.hla
+12=ewq.com
+13=ewq.ocx
+14=ewq.idl
+15=ewq.tlb
+16=ewq.sys
+[MakeDef]
+Menu=0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0
+1=4,O,$B\RC.EXE /v,1
+2=3,O,$B\ML.EXE /c /coff /Cp /nologo /I"$I",2
+3=5,O,$B\LINK.EXE /SUBSYSTEM:CONSOLE /RELEASE /VERSION:4.0 /LIBPATH:"$L" /OUT:"$5",3
+4=0,0,,5
+5=rsrc.obj,O,$B\CVTRES.EXE,rsrc.res
+6=*.obj,O,$B\ML.EXE /c /coff /Cp /nologo /I"$I",*.asm
+7=0,0,"$E\OllyDbg",5
+[Group]
+Group=Assembly,Resources,Misc
+1=2
+2=2
+[AutoLoad]
+AutoLoad=
+[RADebugBP]
+1=

@@ -1,0 +1,79 @@
+.model small
+.stack 100h
+
+.data
+a dw 10
+b dw 3
+c dw 4
+d dw 2
+w dw 7
+f dw 3
+
+z dw ?
+N dw ?
+
+.code
+start:
+    mov ax, @data
+    mov ds, ax
+
+; ===== z = w - c - f =====
+    mov ax, w
+    sub ax, c
+    sub ax, f
+    mov z, ax
+
+    cmp ax, 0
+    jne else_part
+
+; ===== ЕСЛИ z = 0 =====
+; N = a + (a + b) * f / (a - b) + f
+
+    mov ax, a
+    mov bx, b
+    add ax, bx        ; AX = a + b
+
+    mov bx, f
+    imul bx           ; DX:AX = (a + b) * f
+
+    mov bx, a
+    sub bx, b         ; BX = a - b
+
+    cwd               ; подготовка к делению
+    idiv bx           ; AX = частное
+
+    add ax, a
+    add ax, f
+
+    mov N, ax
+    jmp finish
+
+; ===== ИНАЧЕ =====
+; N = c - (a + b + d) * w / (a + w)
+
+else_part:
+
+    mov ax, a
+    add ax, b
+    add ax, d         ; AX = a + b + d
+
+    mov bx, w
+    imul bx           ; DX:AX = (a + b + d) * w
+
+    mov bx, a
+    add bx, w         ; BX = a + w
+
+    cwd
+    idiv bx           ; AX = частное
+
+    mov bx, c
+    sub bx, ax
+
+    mov N, bx
+
+finish:
+    mov ax, 4C00h
+    int 21h
+
+end start
+

@@ -1,0 +1,62 @@
+data segment
+    sum_w     label word
+    summand_1 db  ?
+    carry     db  0
+    summand_2 db  ?
+data ends
+
+text segment
+    assume cs:text, ds:data
+
+begin:
+    mov ax, data
+    mov ds, ax
+
+    mov summand_1, 3
+    mov summand_2, 3
+
+    call add_sign
+
+    ; здесь можно вывести carry и summand_1, если нужно
+    ; например:
+    ; mov ah, 02h
+    ; mov dl, carry   ; или сложнее — вывести число
+    ; int 21h
+
+    mov ah, 4Ch
+    mov al, 00h
+    int 21h
+
+add_sign proc
+    mov al, summand_2
+    add summand_1, al       ; ← обратный порядок — summand_1 += al
+
+    jc @@cf1_of1
+    jo @@cf0_of1
+
+r_true:
+    jmp end_p               ; результат в summand_1 — правильный
+
+@@cf1_of1:
+    jno @@cf1_of0
+    mov carry, 0FFh         ; переполнение → знак -1
+    jmp end_p
+
+@@cf1_of0:
+    jmp r_true              ; перенос есть, но без переполнения → ок
+
+@@cf0_of1:
+    mov carry, 0            ; переполнение в положительную сторону → знак 0
+    jmp end_p
+
+end_p:
+    ret
+add_sign endp
+
+text ends
+
+stk segment stack
+    db 256 dup (0)
+stk ends
+
+end begin

@@ -1,0 +1,58 @@
+.model small
+.stack 100h
+
+.data
+mas dw 1234h, 1111h, 2222h, 3333h, 4445h
+n   equ 5              ; количество элементов
+count dw 0             ; счётчик чётных
+
+.code
+start:
+
+    mov ax, @data
+    mov ds, ax
+
+    xor cx, cx
+    mov cx, n          ; количество элементов
+    xor si, si         ; индекс (смещение)
+    xor bx, bx         ; счётчик чётных
+
+; ===== Поиск количества чётных =====
+check_loop:
+    mov ax, mas[si]
+    test ax, 1         ; проверка младшего бита
+    jnz not_even
+
+    inc bx             ; если чётное — увеличиваем счётчик
+
+not_even:
+    add si, 2          ; переход к следующему слову
+    loop check_loop
+
+    mov count, bx
+
+    cmp bx, 0
+    jne exit_program   ; если чётные есть — выход
+
+; ===== Если чётных нет =====
+; меняем байты в каждом втором элементе
+
+    mov cx, n
+    shr cx, 1          ; будем проходить только половину (каждый второй)
+    mov si, 2          ; начинаем со второго элемента
+
+swap_loop:
+    mov ax, mas[si]
+
+    xchg ah, al        ; меняем байты местами
+
+    mov mas[si], ax
+
+    add si, 4          ; перескок через один элемент
+    loop swap_loop
+
+exit_program:
+    mov ax, 4C00h
+    int 21h
+
+end start

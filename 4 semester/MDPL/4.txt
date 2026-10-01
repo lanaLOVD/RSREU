@@ -1,0 +1,89 @@
+// Переменная для хранения текущего режима отображения
+private PictureBoxSizeMode currentSizeMode = PictureBoxSizeMode.Zoom;
+private ContentAlignment imageAlignment = ContentAlignment.MiddleCenter; // По умолчанию центр
+
+private void левыйВерхнийУголToolStripMenuItem_Click(object sender, EventArgs e)
+{
+    pictureBox1.SizeMode = PictureBoxSizeMode.Normal; // Оригинальный размер
+    pictureBox1.Dock = DockStyle.None; // Отключаем заполнение
+    pictureBox1.Anchor = AnchorStyles.Top | AnchorStyles.Left; // Привязка к левому верхнему углу
+    UpdateMenuChecks(левыйВерхнийУголToolStripMenuItem);
+}
+
+private void правыйВерхнийУголToolStripMenuItem_Click(object sender, EventArgs e)
+{
+    pictureBox1.SizeMode = PictureBoxSizeMode.Normal;
+    pictureBox1.Dock = DockStyle.None;
+    pictureBox1.Anchor = AnchorStyles.Top | AnchorStyles.Right; // Привязка к правому верхнему углу
+    UpdateMenuChecks(правыйВерхнийУголToolStripMenuItem);
+}
+
+private void левыйНижнийУголToolStripMenuItem_Click(object sender, EventArgs e)
+{
+    pictureBox1.SizeMode = PictureBoxSizeMode.Normal;
+    pictureBox1.Dock = DockStyle.None;
+    pictureBox1.Anchor = AnchorStyles.Bottom | AnchorStyles.Left; // Привязка к левому нижнему углу
+    UpdateMenuChecks(левыйНижнийУголToolStripMenuItem);
+}
+
+private void правыйНижнийУголToolStripMenuItem_Click(object sender, EventArgs e)
+{
+    pictureBox1.SizeMode = PictureBoxSizeMode.Normal;
+    pictureBox1.Dock = DockStyle.None;
+    pictureBox1.Anchor = AnchorStyles.Bottom | AnchorStyles.Right; // Привязка к правому нижнему углу
+    UpdateMenuChecks(правыйНижнийУголToolStripMenuItem);
+}
+
+private void поцентруToolStripMenuItem_Click(object sender, EventArgs e)
+{
+    pictureBox1.SizeMode = PictureBoxSizeMode.Normal;
+    pictureBox1.Dock = DockStyle.None;
+    pictureBox1.Anchor = AnchorStyles.None; // Отключаем привязку - будет по центру
+    
+    // Центрируем вручную при изменении размера окна
+    CenterPictureBox();
+    
+    UpdateMenuChecks(поцентруToolStripMenuItem);
+}
+
+private void растянутьToolStripMenuItem_Click(object sender, EventArgs e)
+{
+    pictureBox1.SizeMode = PictureBoxSizeMode.Zoom; // или StretchImage
+    pictureBox1.Dock = DockStyle.Fill; // Заполняет всю форму
+    UpdateMenuChecks(растянутьToolStripMenuItem);
+}
+
+// Вспомогательный метод для центрирования
+private void CenterPictureBox()
+{
+    if (pictureBox1.Image != null)
+    {
+        int x = (this.ClientSize.Width - pictureBox1.Width) / 2;
+        int y = (this.ClientSize.Height - pictureBox1.Height) / 2;
+        pictureBox1.Location = new Point(Math.Max(0, x), Math.Max(0, y));
+    }
+}
+
+// Обновление галочек в меню
+private void UpdateMenuChecks(ToolStripMenuItem selectedItem)
+{
+    foreach (ToolStripMenuItem item in положениеToolStripMenuItem.DropDownItems)
+    {
+        if (item is ToolStripMenuItem menuItem)
+        {
+            menuItem.Checked = (menuItem == selectedItem);
+        }
+    }
+}
+
+// Обработчик изменения размера формы
+protected override void OnResize(EventArgs e)
+{
+    base.OnResize(e);
+    
+    // Если выбран режим "По центру", перецентрируем картинку
+    if (поцентруToolStripMenuItem.Checked && pictureBox1.Image != null)
+    {
+        CenterPictureBox();
+    }
+}

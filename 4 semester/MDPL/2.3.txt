@@ -1,0 +1,241 @@
+.model small
+.stack 256
+
+; ──────────────────────────────────────────────────────────────
+; Макрос: беззнаковое деление N-байтного числа на 1-байтный делитель
+; Порядок байт: big-endian (старший байт — по младшему адресу)
+; ──────────────────────────────────────────────────────────────
+div_unsign_N macro u,N,v,w,r
+    local m1
+    mov     r, 0
+    lea     si, u               ; si → начало делимого
+    xor     di, di              ; di → индекс в частном
+    mov     cx, N
+    xor     dx, dx
+    xor     bx, bx
+m1:
+    mov     ax, 256             ; основание системы счисления
+    mul     r                   ; dx:ax ← r * 256
+    mov     bl, [si]            ; берём очередной байт делимого
+    add     ax, bx
+    adc     dx, 0               ; учитываем возможный перенос
+    div     v                   ; ax = dx:ax / v,  dx = dx:ax % v
+    mov     w[di], al           ; сохраняем очередной байт частного
+    mov     r, dx               ; остаток → r
+    inc     si
+    inc     di
+    loop    m1
+endm
+
+.data
+    ; Делимое — big-endian (старший байт первый)
+    dividend    db  00h, 00h, 27h, 10h     ; пример: 10000 (0x2710)
+    dividend_len equ $ - dividend           ; 4 байта
+
+    divisor     db  25                      ; делитель (1 байт, 1…255)
+
+    quotient    db  dividend_len dup(0)     ; место под частное
+    remainder   dw  ?                       ; остаток (хватит word)
+
+    ; Сообщения
+    msg_welcome db 13,10,'Беззнаковое деление большого числа на байт',13,10,'$'
+    msg_dividend db 'Делимое  (пример 10000): $'
+    msg_divisor  db 13,10,'Делитель (1–255): $'
+    msg_result   db 13,10,'Результат: $'
+    msg_quot     db ' частное = $'
+    msg_rem      db ', остаток = $'
+    msg_nl       db 13,10,'$'
+
+    ; Буфер для вывода десятичных чисел
+    buf         db  16 dup(?), '$'
+
+.code
+main:
+    mov     ax, @data
+    mov     ds, ax
+
+    mov     ah, 09h
+    mov     dx, offset msg_welcome
+    int     21h
+
+    ; ─── Ввод делимого (для примера оставляем hardcoded, можно раскомментировать ввод) ───
+    mov     ah, 09h
+    mov     dx, offset msg_dividend
+    int     21h
+
+    ; mov     ax, 10000                   ; ← можно ввести через клавиатуру
+    ; mov     word ptr [dividend+2], ax
+    ; mov     word ptr [dividend], 0
+
+    ; Показываем текущее делимое (в десятичном виде — упрощённо)
+    mov     ax, word ptr [dividend+2]
+    call    print_dec_word
+
+    ; ─── Ввод делителя ───
+    mov     ah, 09h
+    mov     dx, offset msg_divisor
+    int     21h
+
+    call    read_byte           ; AL ← делитель
+    mov     divisor, al
+
+    cmp     al, 0
+    je      exit_with_error
+
+    ; ─── Выполняем деление через макрос ───
+    div_unsign_N dividend, dividend_len, divisor, quotient, remainder
+
+    ; ─── Вывод результата ───
+    mov     ah, 09h
+    mov     dx, offset msg_result
+    int     21h
+
+    ; Частное (пропускаем ведущие нули)
+    lea     si, quotient
+    mov     cx, dividend_len
+skip_zero:
+    cmp     byte ptr [si], 0
+    jne     print_q
+    inc     si
+    loop    skip_zero
+    ; если всё нули — пишем 0
+    mov     dl, '0'
+    mov     ah, 02h
+    int     21h
+    jmp     print_remainder
+
+print_q:
+    ; Здесь простейший вывод — в hex (для наглядности)
+    ; Можно заменить на полноценный десятичный вывод
+    mov     ch, cl                  ; сколько байт осталось
+    mov     cl, 0                   ; счётчик
+hex_loop_q:
+    mov     al, [si]
+    call    print_byte_hex
+    inc     si
+    inc     cl
+    cmp     cl, ch
+    jb      hex_loop_q
+
+print_remainder:
+    mov     ah, 09h
+    mov     dx, offset msg_rem
+    int     21h
+
+    mov     ax, remainder
+    call    print_dec_word
+
+    mov     ah, 09h
+    mov     dx, offset msg_nl
+    int     21h
+
+exit_program:
+    mov     ax, 4C00h
+    int     21h
+
+exit_with_error:
+    mov     ah, 09h
+    mov     dx, offset msg_nl
+    int     21h
+    mov     dx, offset err_div0
+    int     21h
+    jmp     exit_program
+
+; ──────────────────────────────────────────────────────────────
+; Вспомогательные процедуры
+; ──────────────────────────────────────────────────────────────
+
+; Чтение числа 0–255 → AL
+read_byte proc
+    xor     bx, bx
+rd_loop:
+    mov     ah, 01h
+    int     21h
+    cmp     al, 13          ; Enter
+    je      rd_done
+    cmp     al, '0'
+    jb      rd_loop
+    cmp     al, '9'
+    ja      rd_loop
+    sub     al, '0'
+    mov     ah, 0
+    mov     dx, 10
+    xchg    ax, bx
+    mul     dx              ; bx *= 10
+    add     bx, ax
+    jmp     rd_loop
+rd_done:
+    cmp     bx, 255
+    jbe     rb_ok
+    mov     bx, 255
+rb_ok:
+    mov     ax, bx
+    ret
+read_byte endp
+
+; Вывод слова AX в десятичном виде
+print_dec_word proc
+    push    ax
+    push    bx
+    push    cx
+    push    dx
+    push    di
+
+    mov     di, offset buf + 15
+    mov     byte ptr [di], '$'
+
+    mov     bx, 10
+next_digit:
+    dec     di
+    xor     dx, dx
+    div     bx
+    add     dl, '0'
+    mov     [di], dl
+    test    ax, ax
+    jnz     next_digit
+
+    mov     dx, di
+    mov     ah, 09h
+    int     21h
+
+    pop     di
+    pop     dx
+    pop     cx
+    pop     bx
+    pop     ax
+    ret
+print_dec_word endp
+
+; Вывод байта AL в шестнадцатеричном виде (2 символа)
+print_byte_hex proc
+    push    ax
+    mov     ah, al
+    shr     al, 4
+    call    nibble_to_char
+    mov     dl, al
+    mov     ah, 02h
+    int     21h
+
+    mov     al, ah
+    and     al, 0Fh
+    call    nibble_to_char
+    mov     dl, al
+    mov     ah, 02h
+    int     21h
+
+    pop     ax
+    ret
+print_byte_hex endp
+
+nibble_to_char proc
+    add     al, '0'
+    cmp     al, '9'
+    jbe     ntc_ok
+    add     al, 7           ; A-F
+ntc_ok:
+    ret
+nibble_to_char endp
+
+err_div0    db 'Ошибка: деление на ноль!',13,10,'$'
+
+end main

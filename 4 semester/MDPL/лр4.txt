@@ -1,0 +1,96 @@
+.model small
+.stack 100h
+
+.data
+msg db 'Truth table result:',13,10,'$'
+space db ' $'
+
+.code
+start:
+    mov ax,@data
+    mov ds,ax
+
+    mov dx,offset msg
+    mov ah,09h
+    int 21h
+
+    mov cx,8        ; 8 комбинаций (000..111)
+    xor bx,bx       ; bx = номер комбинации
+
+main_loop:
+
+; -------- X1 X2 X3 --------
+    mov ax,bx
+
+    mov dl,al
+    and dl,4
+    shr dl,2
+    mov si,dx       ; X1
+
+    mov dl,al
+    and dl,2
+    shr dl,1
+    mov di,dx       ; X2
+
+    mov dl,al
+    and dl,1
+    mov bp,dx       ; X3
+
+; -------- X1∧X2 --------
+    mov ax,si
+    and ax,di
+    mov r8,ax
+
+; -------- X2∧X3 --------
+    mov ax,di
+    and ax,bp
+    mov r9,ax
+
+; -------- X1∧X2 ↓ X2∧X3 --------
+    mov ax,r8
+    or ax,r9
+    not ax
+    and ax,1
+    mov r10,ax
+
+; -------- X1∧X3 --------
+    mov ax,si
+    and ax,bp
+    mov r11,ax
+
+; -------- ¬X1 --------
+    mov ax,si
+    xor ax,1
+    mov r12,ax
+
+; -------- X1∧X3 ⊕ ¬X1 --------
+    mov ax,r11
+    xor ax,r12
+    mov r13,ax
+
+; -------- итоговая функция --------
+; (X1∧X2 ↓ X2∧X3) ↓ (X1∧X3 ⊕ ¬X1)
+
+    mov ax,r10
+    or ax,r13
+    not ax
+    and ax,1
+
+; -------- вывод результата --------
+    add al,'0'
+    mov dl,al
+    mov ah,02h
+    int 21h
+
+    mov dx,offset space
+    mov ah,09h
+    int 21h
+
+    inc bx
+    loop main_loop
+
+exit:
+    mov ax,4C00h
+    int 21h
+
+end start

@@ -1,0 +1,165 @@
+.model small
+.stack 256
+
+.data
+    minuend    db ?
+    deduction  db ?
+    
+    msg_input1 db '派皇盆盈盹砌盆 砍盾盆盼秋禹癸盆盾眇盆 (0-255): $'
+    msg_input2 db 13,10,'派皇盆盈盹砌盆 皇秒祇盹砌癸盆盾眇盆 (0-255): $'
+    msg_result db 13,10,'炬盆省砍看秋砌癸砌 皆盆省省盼癸眉眇皇眇皈眇 皇秒祇盹砌癸盼盹竿: $'
+    msg_neg    db ' (眇砌砂盹祈癸砌盆看秋盼秒相 砂盆省砍看秋砌癸砌 皇 盈眇矜眇看盼盹砌盆看秋盼眇盾 眉眇盈盆)$'
+    newline    db 13,10,'$'
+    
+    ; 皆砍祆盆砂 盈看竿 皇秒皇眇盈癸 祇盹研看癸
+    buffer     db 8 dup(?), '$'
+
+.code
+main:
+    mov ax, @data
+    mov ds, ax
+
+    ; 式式式式式式式式式式式式式式式式 皇皇眇盈 矜盆砂皇眇皈眇 祇盹研看癸 式式式式式式式式式式式式式式式式
+    mov ah, 09h
+    mov dx, offset msg_input1
+    int 21h
+
+    call read_number
+    mov minuend, al
+
+    ; 式式式式式式式式式式式式式式式式 皇皇眇盈 皇砌眇砂眇皈眇 祇盹研看癸 式式式式式式式式式式式式式式式式
+    mov ah, 09h
+    mov dx, offset msg_input2
+    int 21h
+
+    call read_number
+    mov deduction, al
+
+    ; 式式式式式式式式式式式式式式式式 皇秒矜眇看盼盆盼盹盆 皇秒祇盹砌癸盼盹竿 式式式式式式式式式式式式式式式式
+    mov al, deduction
+    sub minuend, al           ; minuend = minuend - al
+
+    jnc positive_result       ; 盆研看盹 盼盆 皆秒看眇 省癸盃盾癸 ⊥ 砂盆省砍看秋砌癸砌 ￣ 0
+
+    ; 皆秒看 省癸盃盾 ⊥ 盈盆看癸盆盾 眇砌砂盹祈癸砌盆看秋盼眇盆 祇盹研看眇 皇 盈眇矜眇看盼盹砌盆看秋盼眇盾 眉眇盈盆
+    neg minuend               ; minuend = -minuend
+
+    ; 式式式式式式式式式式式式式式式式 皇秒皇眇盈 砂盆省砍看秋砌癸砌癸 (眇砌砂盹祈癸砌盆看秋盼秒相) 式式式式式式式式式式式式式式式式
+    mov ah, 09h
+    mov dx, offset msg_result
+    int 21h
+
+    movzx ax, minuend         ; 皆盆省省盼癸眉眇皇眇盆 砂癸研禹盹砂盆盼盹盆
+    call print_number
+
+    mov ah, 09h
+    mov dx, offset msg_neg
+    int 21h
+
+    jmp exit_program
+
+positive_result:
+    ; 式式式式式式式式式式式式式式式式 皇秒皇眇盈 砂盆省砍看秋砌癸砌癸 (矜眇看眇盅盹砌盆看秋盼秒相 盹看盹 盼眇看秋) 式式式式式式式式式式式式式式式式
+    mov ah, 09h
+    mov dx, offset msg_result
+    int 21h
+
+    movzx ax, minuend
+    call print_number
+
+exit_program:
+    mov ah, 09h
+    mov dx, offset newline
+    int 21h
+
+    mov ax, 4C00h
+    int 21h
+
+; 式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式
+; 炳砂眇祈盆盈砍砂癸 祇砌盆盼盹竿 眇盈盼眇皆癸相砌眇皇眇皈眇 祇盹研看癸 研 眉看癸皇盹癸砌砍砂秒 (0〝255)
+; 派眇省皇砂癸禺癸盆砌: AL = 祇盹研看眇
+; 式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式
+read_number proc
+    xor bx, bx          ; bx = 0 〞 皆砍盈砍禺盹相 砂盆省砍看秋砌癸砌
+    xor cx, cx          ; 研祇盃砌祇盹眉 祈盹祆砂
+
+read_loop:
+    mov ah, 01h         ; 祇砌盆盼盹盆 研盹盾皇眇看癸 研 穿祉眇盾
+    int 21h
+
+    cmp al, 13          ; Enter?
+    je read_done
+
+    cmp al, '0'
+    jb read_loop        ; 盹皈盼眇砂盹砂砍盆盾 < '0'
+
+    cmp al, '9'
+    ja read_loop        ; 盹皈盼眇砂盹砂砍盆盾 > '9'
+
+    sub al, '0'         ; 矜砂盆眇皆砂癸省砍盆盾 皇 祈盹祆砂砍 0〝9
+    movzx ax, al
+    mov dx, 10
+    mul bx              ; bx * 10
+    add ax, dx          ; + 盼眇皇癸竿 祈盹祆砂癸
+    mov bx, ax
+
+    inc cx
+    cmp cx, 3           ; 省癸禺盹砌癸 眇砌 矜盆砂盆矜眇看盼盆盼盹竿 (255 max)
+    jae read_done
+
+    jmp read_loop
+
+read_done:
+    cmp bx, 255
+    jbe ok_range
+    mov bx, 255         ; 眇皆砂盆省癸盆盾, 盆研看盹 皇皇盆看盹 皆眇看秋禹盆 255
+
+ok_range:
+    mov ax, bx
+    ret
+read_number endp
+
+; 式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式
+; 派秒皇眇盈 祇盹研看癸 盹省 AX (0〝255) 皇 盈盆研竿砌盹祇盼眇盾 皇盹盈盆
+; 式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式式
+print_number proc
+    push ax
+    push bx
+    push cx
+    push dx
+    push di
+
+    mov di, offset buffer + 7
+    mov byte ptr [di], '$'
+    dec di
+
+    mov bx, 10
+    xor cx, cx          ; 研祇盃砌祇盹眉 祈盹祆砂
+
+convert_loop:
+    xor dx, dx
+    div bx              ; ax / 10 ⊥ ax=祇癸研砌盼眇盆, dx=眇研砌癸砌眇眉
+
+    add dl, '0'
+    mov [di], dl
+    dec di
+    inc cx
+
+    test ax, ax
+    jnz convert_loop
+
+    ; 皇秒皇眇盈盹盾 盼癸眉眇矜看盆盼盼秒盆 祈盹祆砂秒
+    inc di              ; 盼癸 矜盆砂皇砍突 祈盹祆砂砍
+    mov ah, 09h
+    mov dx, di
+    int 21h
+
+    pop di
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+print_number endp
+
+end main

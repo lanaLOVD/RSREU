@@ -1,0 +1,99 @@
+.model small
+.stack 100h
+
+.data
+msg db 'Vector F: $'
+space db ' $'
+
+t1 db ?
+t2 db ?
+t3 db ?
+t4 db ?
+t5 db ?
+t6 db ?
+F  db ?
+
+.code
+start:
+    mov ax,@data
+    mov ds,ax
+
+    mov dx,offset msg
+    mov ah,09h
+    int 21h
+
+    mov cx,8
+    xor bx,bx
+
+main_loop:
+
+; -------- X1 X2 X3 --------
+    mov ax,bx
+
+    mov dl,al
+    and dl,4
+    shr dl,2
+    mov si,dx      ; X1
+
+    mov dl,al
+    and dl,2
+    shr dl,1
+    mov di,dx      ; X2
+
+    mov dl,al
+    and dl,1
+    mov bp,dx      ; X3
+
+; -------- X1∧X2 --------
+    mov ax,si
+    and ax,di
+    mov t1,al
+
+; -------- X2∧X3 --------
+    mov ax,di
+    and ax,bp
+    mov t2,al
+
+; -------- X1∧X2 ↓ X2∧X3 --------
+    mov al,t1
+    or al,t2
+    not al
+    and al,1
+    mov t3,al
+
+; -------- X1∧X3 --------
+    mov ax,si
+    and ax,bp
+    mov t4,al
+
+; -------- ¬X1 --------
+    mov ax,si
+    xor ax,1
+    mov t5,al
+
+; -------- X1∧X3 ⊕ ¬X1 --------
+    mov al,t4
+    xor al,t5
+    mov t6,al
+
+; -------- итоговая функция --------
+    mov al,t3
+    or al,t6
+    not al
+    and al,1
+    mov F,al
+
+; -------- вывод --------
+    add al,'0'
+    mov dl,al
+    mov ah,02h
+    int 21h
+
+    inc bx
+    loop main_loop
+
+exit:
+    mov ax,4C00h
+    int 21h
+
+end start

@@ -1,0 +1,6 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory `/Users/admin/Documents/4 semester/MDPL'
+make: Leaving directory `/Users/admin/Documents/4 semester/MDPL'
+ 
+make: *** No targets specified and no makefile found.  Stop.
+

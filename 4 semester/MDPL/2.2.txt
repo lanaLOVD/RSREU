@@ -1,0 +1,265 @@
+.model small
+.386                    ; для удобства (можно убрать, если строго 8086)
+.stack 256
+
+; ──────────────────────────────────────────────────────────────
+; Макрос деления N-байтного беззнакового числа на 1-байтный делитель
+; Порядок байт: старший байт — по младшему адресу (big-endian)
+; ──────────────────────────────────────────────────────────────
+div_unsign_N macro u,N,v,w,r
+    local m1
+    mov     r, 0
+    lea     si, u           ; указатель на делимое
+    xor     di, di          ; указатель на частное
+    mov     cx, N
+    xor     dx, dx
+    xor     bx, bx
+m1:
+    mov     ax, 256         ; основание системы счисления
+    mul     r               ; dx:ax = r * 256
+    mov     bl, [si]        ; следующий байт делимого
+    add     ax, bx
+    adc     dx, 0           ; на случай переноса (редко, но правильно)
+    div     v               ; ax = dx:ax / v    dx = dx:ax % v
+    mov     w[di], al       ; сохраняем байт частного
+    mov     r, dx           ; остаток → r
+    inc     si
+    inc     di
+    loop    m1
+endm
+
+; ──────────────────────────────────────────────────────────────
+.data
+    ; Делимое — 4 байта (big-endian: [старший ... младший])
+    dividend    db  00h, 00h, 03h, 0E8h     ; пример: 1000 (0x03E8)
+    dividend_len equ $ - dividend
+
+    divisor     db  17                      ; делитель (1 байт)
+
+    quotient    db  dividend_len dup (?)    ; частное
+    remainder   dw  ?                       ; остаток (word — хватит)
+
+    ; Сообщения
+    msg_input_dividend  db 13,10,'Введите делимое (до 65535): $'
+    msg_input_divisor   db 13,10,'Введите делитель (1..255): $'
+    msg_result          db 13,10,'Результат: $'
+    msg_quotient        db ' частное = $'
+    msg_remainder       db ', остаток = $'
+    msg_newline         db 13,10,'$'
+
+    buf                 db 12 dup(?),'$'    ; буфер для вывода чисел
+
+.code
+main proc
+    mov     ax, @data
+    mov     ds, ax
+
+    ; ─── Ввод делимого (до 65535 для простоты) ───
+    mov     ah, 09h
+    mov     dx, offset msg_input_dividend
+    int     21h
+
+    call    read_word               ; → AX = число
+    mov     word ptr [dividend+2], ax   ; младшие 2 байта
+    mov     word ptr [dividend], 0      ; старшие = 0
+
+    ; ─── Ввод делителя ───
+    mov     ah, 09h
+    mov     dx, offset msg_input_divisor
+    int     21h
+
+    call    read_byte               ; → AL = делитель
+    mov     divisor, al
+
+    cmp     al, 0
+    je      exit_program            ; защита от деления на 0
+
+    ; ─── Выполняем деление ───
+    div_unsign_N dividend, dividend_len, divisor, quotient, remainder
+
+    ; ─── Вывод результата ───
+    mov     ah, 09h
+    mov     dx, offset msg_result
+    int     21h
+
+    ; частное (убираем ведущие нули при выводе)
+    mov     cx, dividend_len
+    lea     si, quotient
+skip_leading_zeros:
+    cmp     byte ptr [si], 0
+    jne     print_quotient
+    inc     si
+    loop    skip_leading_zeros
+    ; если всё нули — выводим 0
+    mov     ah, 02h
+    mov     dl, '0'
+    int     21h
+    jmp     print_rem
+
+print_quotient:
+    mov     bx, si
+    mov     cx, offset quotient + dividend_len
+    sub     cx, bx                  ; сколько байт осталось
+    call    print_multi_byte
+
+print_rem:
+    mov     ah, 09h
+    mov     dx, offset msg_remainder
+    int     21h
+
+    mov     ax, remainder
+    call    print_word_dec
+
+exit_program:
+    mov     ah, 09h
+    mov     dx, offset msg_newline
+    int     21h
+
+    mov     ax, 4C00h
+    int     21h
+main endp
+
+
+; ──────────────────────────────────────────────────────────────
+; Вывод многобайтового числа (big-endian) из [BX], длина CX байт
+; ──────────────────────────────────────────────────────────────
+print_multi_byte proc
+    push    ax
+    push    bx
+    push    cx
+    push    dx
+
+    ; самый старший байт уже в [bx]
+next_digit:
+    mov     al, [bx]
+    or      al, al
+    jnz     has_value
+
+    ; если 0 — пропускаем, но только ведущие
+    inc     bx
+    loop    next_digit
+    jmp     done
+
+has_value:
+    ; выводим все оставшиеся байты как hex или преобразуем в dec
+    ; для простоты — десятичный вывод через деление на 10
+
+    ; Здесь можно сделать полное преобразование в десятичную строку,
+    ; но для краткости используем посимвольный вывод (можно улучшить)
+
+    ; Вариант проще: выводим как hex для отладки
+    mov     ch, cl                  ; сохраняем счётчик
+hex_loop:
+    mov     al, [bx]
+    mov     ah, al
+    shr     al, 4
+    and     ah, 0Fh
+
+    add     al, '0'
+    cmp     al, '9'
+    jbe     @@1
+    add     al, 7
+@@1:
+    mov     dl, al
+    mov     ah, 02h
+    int     21h
+
+    mov     al, ah
+    add     al, '0'
+    cmp     al, '9'
+    jbe     @@2
+    add     al, 7
+@@2:
+    mov     dl, al
+    mov     ah, 02h
+    int     21h
+
+    inc     bx
+    dec     ch
+    jnz     hex_loop
+
+done:
+    pop     dx
+    pop     cx
+    pop     bx
+    pop     ax
+    ret
+print_multi_byte endp
+
+
+; ──────────────────────────────────────────────────────────────
+; Чтение слова (до 65535) с клавиатуры → AX
+; ──────────────────────────────────────────────────────────────
+read_word proc
+    xor     bx, bx
+read_w:
+    mov     ah, 01h
+    int     21h
+    cmp     al, 13
+    je      rw_done
+    cmp     al, '0'
+    jb      read_w
+    cmp     al, '9'
+    ja      read_w
+    sub     al, '0'
+    movzx   ax, al
+    mov     dx, 10
+    mul     bx
+    add     ax, dx          ; ax = bx*10 + digit
+    mov     bx, ax
+    jmp     read_w
+rw_done:
+    mov     ax, bx
+    ret
+read_word endp
+
+
+; ──────────────────────────────────────────────────────────────
+; Чтение байта (0–255) → AL
+; ──────────────────────────────────────────────────────────────
+read_byte proc
+    call    read_word
+    cmp     ax, 255
+    jbe     rb_ok
+    mov     ax, 255
+rb_ok:
+    ret
+read_byte endp
+
+
+; ──────────────────────────────────────────────────────────────
+; Вывод слова AX в десятичном виде
+; ──────────────────────────────────────────────────────────────
+print_word_dec proc
+    push    ax
+    push    bx
+    push    cx
+    push    dx
+    push    di
+
+    mov     di, offset buf + 10
+    mov     byte ptr [di], '$'
+    mov     bx, 10
+
+conv:
+    dec     di
+    xor     dx, dx
+    div     bx
+    add     dl, '0'
+    mov     [di], dl
+    test    ax, ax
+    jnz     conv
+
+    mov     dx, di
+    mov     ah, 09h
+    int     21h
+
+    pop     di
+    pop     dx
+    pop     cx
+    pop     bx
+    pop     ax
+    ret
+print_word_dec endp
+
+end main

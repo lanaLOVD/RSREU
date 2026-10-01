@@ -1,0 +1,206 @@
+Turbo Assembler	 Version 4.1	    03/26/26 13:40:03	    Page 1
+p1.ASM
+
+
+
+      1				     ; N = c – (a + b	– w) * f / (a	+ w)
+      2				     ; Вычисление над целыми	и действительными числами
+      3
+      4	0000			     .MODEL SMALL
+      5	0000			     .STACK 100h
+      6
+      7	0000			     .DATA
+      8					 ; Целые числа (word)
+      9	0000  000A			 a_w	DW  10	     ; целое a
+     10	0002  0004			 b_w	DW  4	     ; целое b
+     11	0004  0014			 c_w	DW  20	     ; целое c
+     12	0006  0003			 f_w	DW  3	     ; целое f
+     13	0008  0002			 w_w	DW  2	     ; целое w
+     14
+     15					 ; Действительные	числа (double)
+     16	000A  41200000			 a_d	DD  10.0     ; действительное a
+     17	000E  40800000			 b_d	DD  4.0	     ; действительное b
+     18	0012  41A00000			 c_d	DD  20.0     ; действительное c
+     19	0016  40400000			 f_d	DD  3.0	     ; действительное f
+     20	001A  40000000			 w_d	DD  2.0	     ; действительное w
+     21
+     22					 ; Результаты
+     23	001E  ????			 N_w	DW  ?	     ; целый результат
+     24	0020  ????????			 N_d	DD  ?	     ; действительный результат
+     25
+     26					 ; Строки	для вывода
+     27	0024  49 6E 74 65 67 65	72+	 msg_int    DB 'Integer	result:	$'
+     28	      20 72 65 73 75 6C	74+
+     29	      3A 20 24
+     30	0035  52 65 61 6C 20 72	65+	 msg_real   DB 'Real result: $'
+     31	      73 75 6C 74 3A 20	24
+     32	0043  0D 0A 24			 newline    DB 13,10,'$'
+     33
+     34					 ; Временные переменные
+     35	0046  ????			 temp_denom_w	DW  ?	   ; для целых
+     36	0048  ????????			 temp_denom_d	DD  ?	   ; для действительных
+     37
+     38	004C			     .CODE
+     39	0000			     START:
+     40	0000  B8 0000s			 mov ax, @DATA
+     41	0003  8E D8			 mov ds, ax
+     42
+     43					 ; Вычисление	над целыми числами
+     44					 ; N = c – (a	+ b –	w) * f / (a + w)
+     45
+     46	0005  9B DB E3			 finit			  ; инициализация FPU
+     47
+     48					 ; Вычисляем знаменатель (a	+ w)
+     49	0008  9B DF 06 0000r		 fild	 a_w		  ; ST(0) = a
+     50	000D  9B DF 06 0008r		 fild	 w_w		  ; ST(0) = w, ST(1) = a
+     51	0012  9B DE C1			 fadd			 ; ST(0) = a + w
+     52	0015  9B DF 1E 0046r		 fistp	 temp_denom_w	  ; сохраняем знаменатель
+     53
+     54					 ; Вычисляем (a + b – w)
+     55	001A  9B DF 06 0000r		 fild	 a_w		  ; ST(0) = a
+     56	001F  9B DF 06 0002r		 fild	 b_w		  ; ST(0) = b, ST(1) = a
+     57	0024  9B DE C1			 fadd			 ; ST(0) = a + b
+Turbo Assembler	 Version 4.1	    03/26/26 13:40:03	    Page 2
+p1.ASM
+
+
+
+     58	0027  9B DF 06 0008r		 fild	 w_w		  ; ST(0) = w, ST(1) = a + b
+     59	002C  9B DE E9			 fsub			 ; ST(0) = (a +	b) - w
+     60
+     61					 ; Умножаем на f
+     62	002F  9B DF 06 0006r		 fild	 f_w		  ; ST(0) = f, ST(1) = (a+b-w)
+     63	0034  9B DE C9			 fmul			 ; ST(0) = (a+b-w) * f
+     64
+     65					 ; Делим на (a +	w)
+     66	0037  9B DF 06 0046r		 fild	 temp_denom_w	  ; ST(0) = (a+w), ST(1) = (a+b-w)*f
+     67	003C  9B DE F9			 fdiv			 ; ST(0) = (a+b-w)*f / (a+w)
+     68
+     69					 ; Вычисляем c	- (результат)
+     70	003F  9B DF 06 0004r		 fild	 c_w		  ; ST(0) = c, ST(1) = результат деления
+     71	0044  9B D8 E1			 fsub	 st, st(1)	  ; ST(0) = c -	(результат деления)
+     72
+     73					 ; Сохраняем целый результат
+     74	0047  9B DF 1E 001Er		 fistp	 N_w		  ; сохраняем в N_w, стек	очищается
+     75
+     76					 ; Часть 2: Вычисление над действительными числами
+     77					 ; N = c – (a	+ b –	w) * f / (a + w)
+     78
+     79	004C  9B DB E3			 finit			  ; очищаем FPU
+     80
+     81					 ; Вычисляем знаменатель (a	+ w)
+     82	004F  9B D9 06 000Ar		 fld	 a_d		  ; ST(0) = a
+     83	0054  9B D9 06 001Ar		 fld	 w_d		  ; ST(0) = w, ST(1) = a
+     84	0059  9B DE C1			 fadd			 ; ST(0) = a + w
+     85	005C  9B D9 1E 0048r		 fstp	 temp_denom_d	  ; сохраняем знаменатель
+     86
+     87					 ; Вычисляем (a + b – w)
+     88	0061  9B D9 06 000Ar		 fld	 a_d		  ; ST(0) = a
+     89	0066  9B D9 06 000Er		 fld	 b_d		  ; ST(0) = b, ST(1) = a
+     90	006B  9B DE C1			 fadd			 ; ST(0) = a + b
+     91	006E  9B D9 06 001Ar		 fld	 w_d		  ; ST(0) = w, ST(1) = a + b
+     92	0073  9B DE E9			 fsub			 ; ST(0) = (a +	b) - w
+     93
+     94					 ; Умножаем на f
+     95	0076  9B D9 06 0016r		 fld	 f_d		  ; ST(0) = f, ST(1) = (a+b-w)
+     96	007B  9B DE C9			 fmul			 ; ST(0) = (a+b-w) * f
+     97
+     98					 ; Делим на (a +	w)
+     99	007E  9B D9 06 0048r		 fld	 temp_denom_d	  ; ST(0) = (a+w), ST(1) = (a+b-w)*f
+    100	0083  9B DE F9			 fdiv			 ; ST(0) = (a+b-w)*f / (a+w)
+    101
+    102					 ; Вычисляем c	- (результат)
+    103	0086  9B D9 06 0012r		 fld	 c_d		  ; ST(0) = c, ST(1) = результат деления
+    104	008B  9B D8 E1			 fsub	 st, st(1)	  ; ST(0) = c -	результат деления
+    105
+    106					 ; Сохраняем действительный результат
+    107	008E  9B D9 1E 0020r		 fstp	 N_d		  ; сохраняем в N_d
+    108
+    109					 ; Вывод результатов
+    110
+    111					 ; Вывод целого результата
+    112	0093  B4 09			 mov	 ah, 9
+    113	0095  BA 0024r			 lea	 dx, msg_int
+    114	0098  CD 21			 int	 21h
+Turbo Assembler	 Version 4.1	    03/26/26 13:40:03	    Page 3
+p1.ASM
+
+
+
+    115
+    116	009A  A1 001Er			 mov	 ax, N_w
+    117	009D  E8 002A			 call	 WriteInt
+    118
+    119	00A0  B4 09			 mov	 ah, 9
+    120	00A2  BA 0043r			 lea	 dx, newline
+    121	00A5  CD 21			 int	 21h
+    122
+    123					 ; Вывод действительного результата
+    124	00A7  B4 09			 mov	 ah, 9
+    125	00A9  BA 0035r			 lea	 dx, msg_real
+    126	00AC  CD 21			 int	 21h
+    127
+    128					 ; Преобразуем float	в целое для простого вывода
+    129	00AE  9B DB E3			 finit
+    130	00B1  9B D9 06 0020r		 fld	 N_d
+    131	00B6  9B DF 1E 001Er		 fistp	 N_w
+    132
+    133	00BB  A1 001Er			 mov	 ax, N_w
+    134	00BE  E8 0009			 call	 WriteInt
+    135
+    136					 ; Ожидание нажатия клавиши
+    137	00C1  B4 00			 mov	 ah, 0
+    138	00C3  CD 16			 int	 16h
+    139
+    140					 ; Выход в DOS
+    141	00C5  B8 4C00			 mov	 ax, 4C00h
+    142	00C8  CD 21			 int	 21h
+    143
+    144				     ; Процедура вывода целого числа (ax)
+    145	00CA			     WriteInt proc
+    146	00CA  50			 push	 ax
+    147	00CB  53			 push	 bx
+    148	00CC  51			 push	 cx
+    149	00CD  52			 push	 dx
+    150
+    151	00CE  BB 000A			 mov	 bx, 10
+    152	00D1  33 C9			 xor	 cx, cx
+    153
+    154	00D3  3D 0000			 cmp	 ax, 0
+    155	00D6  7D 0A			 jge	 @wi_positive
+    156	00D8  F7 D8			 neg	 ax
+    157	00DA  50			 push	 ax
+    158	00DB  B4 02			 mov	 ah, 2
+    159	00DD  B2 2D			 mov	 dl, '-'
+    160	00DF  CD 21			 int	 21h
+    161	00E1  58			 pop	 ax
+    162
+    163	00E2			     @wi_positive:
+    164	00E2  33 D2			 xor	 dx, dx
+    165	00E4  F7 F3			 div	 bx
+    166	00E6  52			 push	 dx
+    167	00E7  41			 inc	 cx
+    168	00E8  3D 0000			 cmp	 ax, 0
+    169	00EB  75 F5			 jne	 @wi_positive
+    170
+    171	00ED			     @wi_print:
+Turbo Assembler	 Version 4.1	    03/26/26 13:40:03	    Page 4
+p1.ASM
+
+
+
+    172	00ED  5A			 pop	 dx
+    173	00EE  80 C2 30			 add	 dl, '0'
+    174	00F1  B4 02			 mov	 ah, 2
+    175	00F3  CD 21			 int	 21h
+    176	00F5  E2 F6			 loop	 @wi_print
+    177
+    178	00F7  5A			 pop	 dx
+    179	00F8  59			 pop	 cx
+    180	00F9  5B			 pop	 bx
+    181	00FA  58			 pop	 ax
+    182	00FB  C3			 ret
+    183	00FC			     WriteInt endp
+    184
+    185				     END START
+

@@ -1,0 +1,115 @@
+.model small
+.stack 100h
+
+.data
+mas dw 1234h, 1111h, 2223h, 3333h, 4445h
+n   equ 5
+
+count dw 0
+
+msg1 db 'Count of even elements: $'
+msg2 db 13,10,'No even elements. Modified array:',13,10,'$'
+space db ' $'
+
+.code
+start:
+    mov ax, @data
+    mov ds, ax
+
+    mov cx, n
+    xor si, si
+    xor bx, bx
+
+; ===== Поиск чётных =====
+check_loop:
+    mov ax, mas[si]
+    test ax, 1
+    jnz not_even
+    inc bx
+not_even:
+    add si, 2
+    loop check_loop
+
+    mov count, bx
+    cmp bx, 0
+    jne print_count
+
+; ===== Если чётных нет =====
+    mov dx, offset msg2
+    mov ah, 09h
+    int 21h
+
+    mov cx, n
+    shr cx, 1
+    mov si, 2
+
+swap_loop:
+    mov ax, mas[si]
+    xchg ah, al
+    mov mas[si], ax
+    add si, 4
+    loop swap_loop
+
+; ===== Печать массива =====
+    mov cx, n
+    xor si, si
+
+print_array:
+    mov ax, mas[si]
+    call print_num
+
+    mov dx, offset space
+    mov ah, 09h
+    int 21h
+
+    add si, 2
+    loop print_array
+
+    jmp exit_program
+
+; ===== Печать количества =====
+print_count:
+    mov dx, offset msg1
+    mov ah, 09h
+    int 21h
+
+    mov ax, count
+    call print_num
+
+exit_program:
+    mov ax, 4C00h
+    int 21h
+
+; ===== Процедура вывода числа =====
+print_num proc
+    push ax
+    push bx
+    push cx
+    push dx
+
+    xor cx, cx
+    mov bx, 10
+
+convert:
+    xor dx, dx
+    div bx
+    push dx
+    inc cx
+    cmp ax, 0
+    jne convert
+
+print_digits:
+    pop dx
+    add dl, '0'
+    mov ah, 02h
+    int 21h
+    loop print_digits
+
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+print_num endp
+
+end start
